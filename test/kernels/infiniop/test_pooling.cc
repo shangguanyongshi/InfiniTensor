@@ -10,8 +10,11 @@
 namespace infini {
 using KDPS = vector<int>;
 
-template <class T, typename std::enable_if<std::is_base_of<PoolingObj, T>{},
-                                           int>::type = 0>
+// TOLEARN: std::enable_if 的使用方法：
+// std::enable_if 接受两个模板参数：第一个是一个布尔条件，第二个是一个类型
+// 如果布尔条件为 true，std::enable_if 会定义一个嵌套类型 type，其值为第二个模板参数指定的类型；
+// 如果布尔条件为 false，std::enable_if 不会定义 type 成员，这会导致编译错误
+template <class T, typename std::enable_if<std::is_base_of<PoolingObj, T>{}, int>::type = 0>
 void testPoolingCpu(
     const std::function<void(void *, size_t, DataType)> &generator,
     const Shape &shape, const KDPS &kdps, const DataType &dataType) {

@@ -61,6 +61,14 @@ class Kernel {
                             const RuntimeObj *context) const = 0;
 
     // Find the optimal computing function by comparing its running time
+    /**
+     * @brief 使用 funcVec 的每个函数，执行 op 并比较其运行时间，
+     * 选择运行时间最短的函数作为最优函数，调用 setComputeFunc 将其添加到 computeMap 中
+     * @param perfKey 
+     * @param op 
+     * @param record 
+     * @param context 
+     */
     virtual void computeFuncTune(const Key perfKey, const Operator &op,
                                  const PerfRecord &record,
                                  const RuntimeObj *context) {

@@ -62,6 +62,12 @@ template <typename T> auto enum_to_underlying(T e) {
     return static_cast<std::underlying_type_t<T>>(e);
 }
 
+/**
+ * @brief 将 vector 转换为字符串表示形式
+ * @tparam T vector 元素类型
+ * @param vec 要转换的 vector
+ * @return 字符串表示形式的 vector
+ */
 template <typename T> std::string vecToString(const std::vector<T> &vec) {
     std::stringstream ss;
     ss << "[";
@@ -75,6 +81,13 @@ template <typename T> std::string vecToString(const std::vector<T> &vec) {
     return ss.str();
 }
 
+/**
+ * @brief 将数组转换为字符串表示形式
+ * @tparam T 数组元素类型
+ * @param st 指向数组的指针
+ * @param length 数组长度
+ * @return std::string 数组的字符串表示形式
+ */
 template <typename T> std::string vecToString(const T *st, size_t length) {
     std::stringstream ss;
     ss << "[";
@@ -89,11 +102,26 @@ template <typename T> std::string vecToString(const T *st, size_t length) {
     return ss.str();
 }
 
+/**
+ * @brief 测量指定函数的平均执行时间，该函数会先进行预热，
+ *        然后测量指定函数的执行时间，并返回平均执行时间（毫秒）
+ * @param func 要测量执行时间的函数
+ * @param sync 用于同步的函数，可确保操作完成，可为空
+ * @param warmupRounds 预热轮数，在正式计时前执行指定函数的次数
+ * @param timingRounds 计时轮数，在预热后执行指定函数的次数
+ * @return double 平均执行时间（毫秒）
+ */
 double timeit(
     const std::function<void()> &func,
+    // TOLEARN: 什么情况下 sync 为空
     const std::function<void(void)> &sync = []() {}, int warmupRounds = 10,
     int timingRounds = 10);
 
+/**
+ * @brief 将 vector<int> 转换为 vector<int64_t>
+ * @param v32 输入的 vector<int>
+ * @return vector<int64_t> 转换后的 vector<int64_t>
+ */
 std::vector<int64_t> castTo64(std::vector<int> const &v32);
 
 } // namespace infini

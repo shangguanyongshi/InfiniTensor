@@ -13,7 +13,7 @@ if __name__ == '__main__':
     torch.onnx.export(tv_model, param, model_path, verbose=False)
 
     onnx_model = onnx.load(model_path)
-    model = OnnxStub(onnx_model, backend.cuda_runtime())
+    model = OnnxStub(onnx_model, backend.cpu_runtime())
     images = np.random.random(input_shape).astype(np.float32)
     next(iter(model.inputs.values())).copyin_numpy(images)
     model.run()

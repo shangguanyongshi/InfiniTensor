@@ -250,12 +250,19 @@ struct OpType {
     bool operator<(OpType others) const { return type < others.type; }
 
     const char *toString() const;
+    // 是否为一元运算的算子
     bool isUnary() const;
+    // 是否为二元运算的算子
     bool isBinary() const;
+    // 是否为针对元素的算子
     bool isElementWise() const;
+    //是否为比较算子
     bool isCompair() const;
+    // 是否为池化操作算子
     bool isPool() const;
+    // 是否为全局池化操作算子
     bool isGlobalPool() const;
+    // 是否为矩阵乘法或卷积操作算子
     bool isMatMulOrConv() const;
 };
 

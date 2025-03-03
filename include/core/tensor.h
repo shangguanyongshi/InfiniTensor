@@ -38,6 +38,9 @@ class TensorObj : public TensorBaseObj {
     size_t getRank() const { return shape.size(); }
     Shape getStride() const;
     size_t getOffset(const vector<int> &ds) const;
+    /**
+     * @brief 使用运行时给 data 分配张量所需空间大小的内存（data 中的 ptr 会指向分配的内存）
+     */
     void dataMalloc();
     UidBaseType getFuid() const { return fuid; }
     bool isWeight() const { return tensorType == TensorType::weight; }
@@ -118,11 +121,21 @@ class TensorObj : public TensorBaseObj {
     // device.
     // FIXME: std::fucntion copies the generator instead of passing it by ref.
     // Thus the internal state of generator cannot be updated.
-    void setData(
-        std::function<void(void *, size_t, DataType)> const &generator) const;
-
+    /**
+     * @brief 使用给定的生成器函数设置张量数据
+     * @param generator 生成器函数，用于生成张量数据，参数为(要生成的数据位置指针，数据大小，数据类型)
+     */
+    void setData(std::function<void(void *, size_t, DataType)> const &generator) const;
+    
+    /**
+     * @brief 显式指定 blob 来设置张量数据
+     * @param blob 要设置的 blob 数据
+     */
     void setDataBlob(const Blob &blob);
-
+    
+    /**
+     * @brief 利用当前张量创建一个新的张量，置空内部 data 指针、清空源算子和目标算子
+     */
     Tensor clone() const {
         auto obj = make_ref<TensorObj>(*this);
         obj->freeData();
@@ -130,6 +143,10 @@ class TensorObj : public TensorBaseObj {
         obj->source.reset();
         return obj;
     }
+    /**
+     * @brief 利用当前张量创建一个新的张量，置空内部 data 指针、清空源算子和目标算子，指定新的运行时
+     * @param runtime 新的运行时
+     */
     Tensor clone(Runtime runtime) const {
         auto obj = make_ref<TensorObj>(*this);
         obj->runtime = runtime;
@@ -142,7 +159,7 @@ class TensorObj : public TensorBaseObj {
         }
         return obj;
     }
-
+    
     void printData() const;
     void dumpData(std::ofstream &ofs) const;
     bool equalData(const Tensor &rhs, double relativeError = 1e-6) const;

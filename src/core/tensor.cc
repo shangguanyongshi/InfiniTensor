@@ -161,8 +161,9 @@ bool TensorObj::equalData(const Tensor &rhs, double relativeError) const {
 }
 
 void TensorObj::dataMalloc() {
-    if (!data)
+    if (!data) {
         data = runtime->allocBlob(getBytes());
+    }
 }
 
 void TensorObj::copyData(const TensorObj *src) {
@@ -171,10 +172,10 @@ void TensorObj::copyData(const TensorObj *src) {
     runtime->copyBlob(this, src);
 }
 
-void TensorObj::setData(
-    const std::function<void(void *, size_t, DataType)> &generator) const {
+void TensorObj::setData(const std::function<void(void *, size_t, DataType)> &generator) const {
     IT_ASSERT(data != nullptr);
     if (runtime->isCpu()) {
+        // getRawDataPtr 用于获取当前 tensor 的 data 指针
         generator(getRawDataPtr<void *>(), size(), dtype);
     } else {
         // Create a CPU buffer for the generetor and copy results to the device

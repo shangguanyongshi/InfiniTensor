@@ -36,6 +36,7 @@ void CpuRuntimeObj::run(const Graph &graph, bool tune, bool profiling) const {
         auto perfData = perfEngine.getPerfData(perfKey);
 
         // If no record and disable tuning, run with the default argument
+        // 如果没有记录并且不进行调优，则使用默认参数运行
         if (!perfData && !tune) {
             kernel->compute(op, this);
             continue;
@@ -44,6 +45,8 @@ void CpuRuntimeObj::run(const Graph &graph, bool tune, bool profiling) const {
         // TODO: The copy of record should be eliminated
         PerfRecord record;
         // Tune the kernel if there is no record
+        // 没有该算子的性能数据时，且需要调优时，执行调优
+        // 先创建一个空的性能数据
         if (!perfData) {
             // TODO: record is not used
             // printf("no record data\n");
@@ -51,8 +54,9 @@ void CpuRuntimeObj::run(const Graph &graph, bool tune, bool profiling) const {
             perfEngine.setPerfData(perfKey, record);
         } else
             record = perfData;
-
+        // 然后执行调优函数，将调优结果存储到对应 kernel 内部
         kernel->computeFuncTune(perfKey, op, record, this);
+        // 选择内部的调优函数或默认函数作为算子最终执行的函数
         ComputeFuncPtr funcPtr = kernel->getComputeFunc(perfKey);
 
         if (!profiling) {

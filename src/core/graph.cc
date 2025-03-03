@@ -11,6 +11,7 @@ GraphObj::GraphObj(Runtime runtime, OpVec ops_in)
     map<UidBaseType, Tensor> tensorPool;
     // Clone tensors
     for (const auto &op : ops_in) {
+        // 复制当前算子所有的输入和输出张量
         for (const auto &t : op->getInputs()) {
             if (t) {
                 if (tensorPool.find(t->getFuid()) == tensorPool.end())
@@ -157,8 +158,9 @@ void GraphObj::shape_infer() {
 
 void GraphObj::dataMalloc(bool useNaiveAllocator, size_t memPoolSize) {
     // topological sorting first
-
     IT_ASSERT(topo_sort() == true);
+
+    // 如果设置了 useNaiveAllocator 为 true，则直接为每个张量分别分配内存
     if (useNaiveAllocator) {
         // can not set memory pool when use naive allocator
         IT_ASSERT(memPoolSize == 0);
@@ -177,41 +179,55 @@ void GraphObj::dataMalloc(bool useNaiveAllocator, size_t memPoolSize) {
     if (memPoolSize > 0) {
         allocator.setMemPool(memPoolSize);
     }
+    
     // count the number of times all tensors are used
+    // 记录张量被多少个算子使用
     std::unordered_map<TensorObj *, size_t> tensorToRefCount;
+
     // record the memory address offsets of all tensors to be allocated
+    // 记录所有需要分配内存的张量（权重、输入、输出、其他）的内存地址偏移量
     std::unordered_map<TensorObj *, size_t> tensorToOffset;
 
     // reinit allocator
     allocator.init();
 
-    // record all weight tensors, including weight tensors and kvcache
-    // tensors
+    // record all weight tensors, including weight tensors and kvcache tensors
     std::unordered_set<TensorObj *> weightTensors;
+
+    // 此循环中：
+    // 1. 对权重张量直接在 memPool 中获取偏移地址，并插入 weightTensors 集合
+    // 2. 输入、输出张量在此循环中只使用 alloc 模拟分配
+    // 3. 对于其他张量，获取其目标算子的个数，保存到 tensorToRefCount 集合
+    // 4. 对于没有源算子的张量（是用户创建的张量），使用 alloc 模拟分配内存
     for (auto &tensor : tensors) {
         if (tensor->isWeight()) {
             // allocate memory for all weight tensors first, and this memory
             // will not be freed until the graph is destroyed
+            // 模拟并记录权重张量内存分配时的偏移量
             weightTensors.insert(tensor.get());
             if (!this->weightAllocated) {
-                tensorToOffset[tensor.get()] =
-                    allocator.allocWeight(tensor->getBytes());
+                tensorToOffset[tensor.get()] = allocator.allocWeight(tensor->getBytes());
             }
         } else if (tensor->isInput() || tensor->isOutput()) {
             // allocate memory for all input and output tensors, and this memory
             // will not be reused later
+            // 模拟并记录输入和输出张量内存分配时的偏移量
             tensorToOffset[tensor.get()] = allocator.alloc(tensor->getBytes());
         } else {
+            // 对于其他张量，先记录其目标算子的个数
             tensorToRefCount[tensor.get()] = tensor->getTargets().size();
             // allocate memory for all user-created tensors
+            // 如果张量没有来源算子（是用户创建的张量），则进行模拟内存分配
             if (tensor.get()->getSource() == nullptr) {
-                tensorToOffset[tensor.get()] =
-                    allocator.alloc(tensor->getBytes());
+                tensorToOffset[tensor.get()] = allocator.alloc(tensor->getBytes());
             }
         }
     }
+    
     // if memory has not yet been allocated for weight tensors,
     // allocate memory now and do not allocate again in the future.
+    // 权重张量的内存在 memPool 中保存，前面已经给 memPool 分配过内存了，
+    // 这里可以直接记录并设置权重张量的实际运行时和对应的内存地址
     if (!this->weightAllocated) {
         this->weightAllocated = true;
         // only allocate once for weight tensors
@@ -219,31 +235,39 @@ void GraphObj::dataMalloc(bool useNaiveAllocator, size_t memPoolSize) {
             IT_ASSERT(tensorToOffset.find(tensor) != tensorToOffset.end());
             tensor->setDataBlob(make_ref<BlobObj>(
                 tensor->runtime,
-                static_cast<uint8_t *>(allocator.getWeightPtr()) +
-                    tensorToOffset[tensor]));
+                static_cast<uint8_t *>(allocator.getWeightPtr()) + tensorToOffset[tensor]
+            ));
         }
     }
+    
     // traverse in topological order and simulate memory allocation
+    // 按照拓扑序遍历每个算子，模拟其他类型张量内存的分配和释放，
+    // 遍历到当前算子表示正在对该算子的输入应用该算子的计算逻辑，
+    // 计算前应该为输出张量分配内存，计算后应该释放不再使用的输入张量的内存
     for (auto &op : ops) {
         // memory should be allocated for the op's output first
+        // 1. 先获取算子的输出张量，并模拟分配内存
         auto outputs = op->getOutputs();
         for (auto &tensor : outputs) {
             if (tensor) {
                 if (tensor->isOthers()) {
-                    tensorToOffset[tensor.get()] =
-                        allocator.alloc(tensor->getBytes());
+                    tensorToOffset[tensor.get()] = allocator.alloc(tensor->getBytes());
                 }
             }
         }
+        // 2. 再获取算子的输入张量，并模拟释放内存
         auto inputs = op->getInputs();
         for (auto &tensor : inputs) {
             if (tensor) {
                 if (tensor->isOthers()) {
+                    // 检查张量是否被其他算子使用
                     auto tensorIter = tensorToRefCount.find(tensor.get());
                     IT_ASSERT(tensorIter != tensorToRefCount.end());
                     IT_ASSERT(tensorToRefCount[tensor.get()] > 0);
+                    // 如果张量被其他算子使用，则减少引用计数（表示当前算子计算完成了）
                     tensorToRefCount[tensor.get()] -= 1;
                     if (tensorToRefCount[tensor.get()] == 0) {
+                        // 如果当前张量的引用计数减少到了 0，表示该张量后续不再使用了，应该释放内存
                         // indicate that this tensor will no longer be used and
                         // perform memory free
                         tensorToRefCount.erase(tensor.get());
@@ -256,13 +280,15 @@ void GraphObj::dataMalloc(bool useNaiveAllocator, size_t memPoolSize) {
     }
 
     // perform actual memory allocation for non-weight tensors
+    // 调用 getPtr 会根据模拟结果，分配实际的内存空间，此时需要将实际内存空间 + 对应张量的偏移量
+    // 保存到张量的 data.ptr 中，以保证后续计算时可以直接获取数据的保存位置
     for (auto &tensor : tensors) {
         if (!tensor->isWeight()) {
-            IT_ASSERT(tensorToOffset.find(tensor.get()) !=
-                      tensorToOffset.end());
+            IT_ASSERT(tensorToOffset.find(tensor.get()) != tensorToOffset.end());
             tensor->setDataBlob(make_ref<BlobObj>(
-                tensor->runtime, static_cast<uint8_t *>(allocator.getPtr()) +
-                                     tensorToOffset[tensor.get()]));
+                tensor->runtime, 
+                static_cast<uint8_t *>(allocator.getPtr()) + tensorToOffset[tensor.get()]
+            ));
         }
     }
 }
@@ -271,10 +297,11 @@ Tensor GraphObj::cloneKV(Tensor &tensor) {
     auto obj = tensor->clone();
     if (allocator.getMemPoolStatus()) {
         if (tensor->hasData()) {
+            // 按照 tensor 的
             obj->setDataBlob(make_ref<BlobObj>(
                 tensor->runtime,
-                static_cast<uint8_t *>(allocator.getHeapPtr()) +
-                    allocator.heapAlloc(tensor->getBytes())));
+                static_cast<uint8_t *>(allocator.getHeapPtr()) + allocator.heapAlloc(tensor->getBytes())
+            ));
             obj->copyData(tensor);
         }
     } else {

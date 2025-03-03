@@ -17,10 +17,15 @@ else()
     cmake_minimum_required(VERSION 3.17)
 endif()
 
+# 用于根据已有选项，设置新选项的值
 include(CMakeDependentOption)
 project(InfiniTensor C CXX)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# 以下参数用于确定是否要构建测试文件夹内的代码
+# 如果第四个参数成立，将第一个参数的值设置为第三个参数，否则设置为第五个参数
 cmake_dependent_option(BUILD_TEST_CORE "Build tests for core components" ON BUILD_TEST OFF)
+# test/pet 文件夹已经不存在，所以不再构建
 cmake_dependent_option(BUILD_TEST_PET "Build tests for PET" OFF BUILD_TEST OFF)
 
 set(DEFAULT_BUILD_TYPE "RelWithDebInfo")
@@ -64,6 +69,7 @@ if(((CMAKE_C_COMPILER_ID MATCHES "GNU") AND NOT MINGW AND NOT HAIKU) AND CMAKE_C
   add_compile_options(-Wno-array-bounds -Wno-stringop-overflow)
 endif()
 
+# 查找 python 包，且只引入 Interpreter 和 Development 两个组件
 find_package(
   Python
   COMPONENTS Interpreter Development
@@ -104,6 +110,7 @@ include_directories(3rd-party/pybind11/include)
 add_subdirectory(3rd-party/nlohmann_json_cmake_fetchcontent)
 include_directories(3rd-party/nlohmann_json_cmake_fetchcontent/single_include)
 
+# 引入安装的统一算子库
 # include infini_operators
 if(DEFINED ENV{INFINI_ROOT})
   include_directories($ENV{INFINI_ROOT}/include)
@@ -125,6 +132,7 @@ if(BUILD_NNET AND BUILD_TEST)
   endif()
 endif()
 
+# 编译并引入 gtest 相关的头文件
 if(BUILD_TEST)
   set(BUILD_GMOCK
       OFF
@@ -141,6 +149,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -UNDEBUG") # Enable asse
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -UNDEBUG") # Enable assertion
 
 
+# 添加所有非硬件相关的源文件
 # Source files
 file(GLOB_RECURSE SRC src/ffi/*.cc src/core/*.cc src/kernels/cpu/*.cc src/kernels/infiniop/*.cc src/operators/*.cc src/utils/*.cc)
 
@@ -177,6 +186,7 @@ if(USE_INTELCPU)
   list (APPEND SRC ${SRC_INTELCPU})
 endif()
 
+# 创建 InfiniTensor 共享库
 # Libraries
 add_library(InfiniTensor SHARED ${SRC})
 if(USE_PROTOBUF)
@@ -380,6 +390,7 @@ endif()
 # pybind11_add_module(infini MODULE ${FFI})
 # target_link_libraries(infini PRIVATE infini_cpp)
 
+# 为 files 文件夹中的每个文件创建一个测试可执行文件
 function(build_test files)
   # Non-recursive glob for skip failed tests
   file(GLOB TEST_SOURCES ${files})
@@ -397,6 +408,7 @@ if(BUILD_TEST)
   if(USE_TRACE)
     build_test(test/trace/*.cc)
   endif()
+  # 为 test/kernels/infiniop/下的所有 .cc 文件生成测试可执行文件
   if(BUILD_TEST_CORE)
   # some dataType maybe not support in infiniop, so we skip temporarily
     # build_test(test/core/*.cc)

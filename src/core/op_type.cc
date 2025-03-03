@@ -2,6 +2,7 @@
 
 namespace infini {
 const char *OpType::toString() const {
+// TOLEARN: 宏定义中的 # 是字符串化操作符，用于将宏参数转换为字符串
 #define CASE(NAME)                                                             \
     case OpType::NAME:                                                         \
         return #NAME

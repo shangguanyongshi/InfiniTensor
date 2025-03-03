@@ -61,7 +61,8 @@ class DataType {
     bool operator==(const DataType &rhs) const { return index == rhs.index; }
     bool operator<(const DataType &rhs) const { return index < rhs.index; }
 
-    template <typename T> static int get() {
+    template <typename T> 
+    static int get() {
         IT_TODO_HALT_MSG("Unsupported data type");
     }
     size_t getSize() const { return sizePerElement[index]; }
@@ -72,6 +73,7 @@ class DataType {
 
 // Method definitions are out of the declaration due to GCC bug:
 // https://stackoverflow.com/questions/49707184/explicit-specialization-in-non-namespace-scope-does-not-compile-in-gcc
+// 模板函数特化
 template <> inline int DataType::get<float>() { return 0; }
 template <> inline int DataType::get<uint32_t>() { return 1; }
 template <> inline int DataType::get<uint8_t>() { return 2; }
@@ -83,7 +85,10 @@ template <> inline int DataType::get<int64_t>() { return 7; }
 template <> inline int DataType::get<uint64_t>() { return 8; }
 template <> inline int DataType::get<double>() { return 9; }
 
-template <int index> struct DT {};
+// 定义模板参数为非类型参数的模板类 DT
+template <int index> 
+struct DT {};
+// 定义不同的 index 模板参数值特化，每个特化类型中定义了一个特定类型别名 t
 template <> struct DT<0> { using t = bool; };
 template <> struct DT<1> { using t = float; };
 template <> struct DT<2> { using t = uint8_t; };

@@ -39,6 +39,9 @@ DeviceEnum toInfiniopDevice(Device device);
 
 /***************** Forward declaration end *****************/
 
+// TOLEARN: std::enable_shared_from_this 是一个标准库模板类，
+// 公开继承 std::enable_shared_from_this 的类
+// 可以通过调用方法 shared_from_this() 直接获得指向自己的 shared_ptr
 class RuntimeObj : public std::enable_shared_from_this<RuntimeObj> {
   protected:
     Device device;
@@ -124,6 +127,12 @@ class CpuRuntimeObj : public RuntimeObj {
   public:
     CpuRuntimeObj(Device dev) : RuntimeObj(dev) {}
 
+    /**
+     * @brief 运行指定的图
+     * @param graph 要运行的图
+     * @param tune 是否对每个算子执行调优操作（为 false 时使用算子的默认执行函数）
+     * @param profiling 是否打印每个算子的性能数据
+     */
     void run(const Graph &graph, bool tune = false,
              bool profiling = false) const override;
 
